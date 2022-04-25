@@ -1,0 +1,8 @@
+{
+ 	"Address"  	 : ":8080",
+  	"ReadTimeout"    : 10,
+  	"WriteTimeout"   : 600,
+  	"Static"         : "public",
+  	"ShutdownTimeout": 30,		
+	"JWT_SECRET"	 : "what_is_love_baby_dont_hurt_me_no_more"
+}
