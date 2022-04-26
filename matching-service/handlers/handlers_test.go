@@ -4,21 +4,21 @@ import (
 	"net/http"
 	"testing"
 	"github.com/alicevvikk/bitaksi/matching-service/data"
-	"encoding/json"
 	"bytes"
 )
 
-var tokenString = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRoZW50aWNhdGVkIjp0cnVlfQ.CK7jhYYJ_ULnaO4s_vjy15_6pfFzwI5ns-s4XPvGYyo"
+var tokenStringTest = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRoZW50aWNhdGVkIjp0cnVlfQ.CK7jhYYJ_ULnaO4s_vjy15_6pfFzwI5ns-s4XPvGYyo"
 
+
+// OK test
 func TestMatchHandlerAuthentication200(t *testing.T) {
 	expectedStatusCode := http.StatusOK // 200
 
 	model := data.MatchingRequest{
-		Type:		"Point",
-		Coordinates:	[]float64{21.12345, 22.12345},
+		Coordinates:	[]float64{29.1061127, 41.53561161},
 	}
 	var newBuffer = &bytes.Buffer{}
-	err := model.ToJSON(newBuffer)
+	err := data.ToJSON(newBuffer, &model)
 
 	if err != nil {
 		t.Fatal(err)
@@ -30,7 +30,7 @@ func TestMatchHandlerAuthentication200(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req.Header.Add("Authorization", tokenString)
+	req.Header.Add("Authorization", tokenStringTest)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -43,7 +43,7 @@ func TestMatchHandlerAuthentication200(t *testing.T) {
 	}
 
 }
-
+// Coordinates are empty. 
 func TestMatchHandlerAuthentication400(t *testing.T) {
 	expectedStatusCode := http.StatusBadRequest  // 400
 
@@ -54,7 +54,7 @@ func TestMatchHandlerAuthentication400(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req.Header.Add("Authorization", tokenString)
+	req.Header.Add("Authorization", tokenStringTest)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -68,14 +68,15 @@ func TestMatchHandlerAuthentication400(t *testing.T) {
 
 }
 
+// Coordinates are missing. 
 func TestMatchHandlerAuthentication400_2(t *testing.T) {
 	expectedStatusCode := http.StatusBadRequest  // 400
 
 	model := data.MatchingRequest{
-		Type:		"Point",
+		Coordinates:	[]float64{12.121212},
 	}
 	modelBuffer := &bytes.Buffer{}
-	err := model.ToJSON(modelBuffer)
+	err := data.ToJSON(modelBuffer, &model)
 
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +89,7 @@ func TestMatchHandlerAuthentication400_2(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req.Header.Add("Authorization", tokenString)
+	req.Header.Add("Authorization", tokenStringTest)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -102,15 +103,15 @@ func TestMatchHandlerAuthentication400_2(t *testing.T) {
 
 }
 
+// Not sending any tokenString and Authorization header.
 func TestMatchHandlerAuthentication401(t *testing.T) {
 	expectedStatusCode := http.StatusUnauthorized  // 401
 
 	model := data.MatchingRequest{
-		Type:		"Point",
 		Coordinates:	[]float64{21.123456, 22.123456},
 	}
 	modelBuffer := &bytes.Buffer{}
-	err := model.ToJSON(modelBuffer)
+	err := data.ToJSON(modelBuffer, &model)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,15 +137,15 @@ func TestMatchHandlerAuthentication401(t *testing.T) {
 
 }
 
+// Sending true token but under wrong header ends up 401
 func TestMatchHandlerAuthentication401_2(t *testing.T) {
 	expectedStatusCode := http.StatusUnauthorized  // 401
 
 	model := data.MatchingRequest{
-		Type:		"Point",
-		Coordinates:	[]float64{24.123456, 222.123456},
+		Coordinates:	[]float64{24.123456, 22.123456},
 	}
 	modelBuffer := &bytes.Buffer{}
-	err := model.ToJSON(modelBuffer)
+	err := data.ToJSON(modelBuffer, &model)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +157,7 @@ func TestMatchHandlerAuthentication401_2(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req.Header.Add("lalalaland", tokenString)
+	req.Header.Add("lalalaland", tokenStringTest)
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -169,16 +170,15 @@ func TestMatchHandlerAuthentication401_2(t *testing.T) {
 	}
 
 }
-
+// Sending wrong token ends up with 401
 func TestMatchHandlerAuthentication401_3(t *testing.T) {
 	expectedStatusCode := http.StatusUnauthorized  // 401
 
 	model := data.MatchingRequest{
-		Type:		"Point",
 		Coordinates:	[]float64{22.179384, 29.222123},
 	}
 	modelBuffer := &bytes.Buffer{}
-	err := model.ToJSON(modelBuffer)
+	err := data.ToJSON(modelBuffer, &model)
 
 	if err != nil {
 		t.Fatal(err)

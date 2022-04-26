@@ -8,7 +8,6 @@ import (
 	"log"
 
 	"github.com/alicevvikk/bitaksi/driver-location-service/domain"
-	"github.com/alicevvikk/bitaksi/driver-location-service/utils"
 
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -64,103 +63,88 @@ func newMongoClient() (*mongo.Client, error) {
 
 }
 
-func (mr *mongoRepository) DeleteDriverById(id string) (int64, error) {
+func (mr *mongoRepository) DeleteDriverById(id primitive.ObjectID) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
 	defer cancel()
 
 	coll := mr.client.Database(mr.db).Collection("driver-locations")
 
-        objId, err := primitive.ObjectIDFromHex(id)
-        if err != nil {
-                return 0, err
-        }
-
-	filter := bson.M{"_id": objId}
+        filter := bson.M{"_id": id}
 	count, err := coll.DeleteOne(
 		ctx,
 		filter,
 		nil,
 	)
+	if err != nil {
+		return 0, err
+	}
 
 	return count.DeletedCount, nil
 }
 
-func (mr *mongoRepository) CreateDriver(locations domain.Locations) (count int) {
-
+func (mr *mongoRepository) CreateDriver(location *domain.DriverLocation) (int64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
 	defer cancel()
 
 	coll := mr.client.Database(mr.db).Collection("driver-locations")
 
-	for _, location := range locations {
-		if location.Id.IsZero() == true {
-			filter := bson.D{{"location", location.Location}}
-			_, err := coll.InsertOne(ctx, filter, nil)
-			if err != nil {
-				return count
-			}
-
-			log.Println("Creating..")
-			if err == nil {
-				count ++
-			}
-
-		} else {
-
-			filter := bson.D{{"_id", location.Id}}
-			update := bson.D{{"$set", bson.D{{"location", location.Location}}}}
-			_, err := coll.UpdateOne(ctx, filter, update, nil)
-			if err != nil {
-				log.Println("UPDATE error: ", err)
-			} else {
-			count ++
-		}	}
+	filter := bson.D{{"location", location.Location}}
+	_, err := coll.InsertOne(ctx, filter, nil)
+	if err != nil {
+		return 0, err
 	}
 
-	log.Println("Atleast", count, "documents have been changed or created..")
-	return count
+	return 1, err
 }
 
-func (mr *mongoRepository) DriverById(id string) (domain.DriverLocation, error) {
+func (mr *mongoRepository) UpdateDriver(location *domain.DriverLocation) (int64, error){
 	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
 	defer cancel()
 
 	coll := mr.client.Database(mr.db).Collection("driver-locations")
 
-	objID, err := primitive.ObjectIDFromHex(id)
+	filter := bson.D{{"_id", location.Id}}
+	update := bson.D{{"$set", bson.D{{"location", location.Location}}}}
+	res, err := coll.UpdateOne(ctx, filter, update, nil)
+	log.Println("HERE BUDDYY", res.ModifiedCount, res.MatchedCount)
+
 	if err != nil {
-		return domain.DriverLocation{}, err
+		return 0, err
 	}
+	return res.ModifiedCount, nil
+}
 
-	var result domain.DriverLocation
+func (mr *mongoRepository) DriverById(id primitive.ObjectID) (*domain.DriverLocation, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
+	defer cancel()
 
-	filter := bson.M{"_id": objID}
-	err = coll.FindOne(
+	coll := mr.client.Database(mr.db).Collection("driver-locations")
+
+	result := new(domain.DriverLocation)
+	filter := bson.M{"_id": id}
+	err := coll.FindOne(
 		ctx,
 		filter,
 		nil,
-	).Decode(&result)
-
+	).Decode(result)
 	if err != nil {
-		return domain.DriverLocation{}, err
+		return nil, err
 	}
-
 	return result, nil
 }
 
 
-func (mr *mongoRepository) DriverByLocation(userLocation *domain.Location) (*domain.ResponseLocation, error) {
+func (mr *mongoRepository) DriverByLocation(userLocation *domain.Location, r float64) (*domain.DriverLocation, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
 	defer cancel()
 
 	collection := mr.client.Database(mr.db).Collection("driver-locations")
-
 	filter := bson.M{
 		"location": bson.M{
 			"$near": bson.M{
 				"$geometry":
 					userLocation,
-					"$maxDistance": 3000,
+					"$maxDistance": r,
 			},
 		},
 	}
@@ -169,32 +153,22 @@ func (mr *mongoRepository) DriverByLocation(userLocation *domain.Location) (*dom
 		return nil, err
 	}
 
-	driverLocation := domain.DriverLocation{}
+	driverLocation := new(domain.DriverLocation)
 	if cursor.Next(ctx) {
-		err := cursor.Decode(&driverLocation)
+		err := cursor.Decode(driverLocation)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 
-		log.Println("HERE1: ", err)
 		return nil, errors.New("No match.")
 	}
 
-	log.Println("HERE: ", err)
-	distance := utils.CalculateDistance(
-		userLocation.Coordinates,
-		driverLocation.Location.Coordinates)
-
-	model := &domain.ResponseLocation{
-		DriverLocation:	driverLocation,
-		Distance:	distance,
-	}
-	return model, nil
+	return driverLocation, nil
 }
 
-func (mr *mongoRepository) Drivers() ([]domain.DriverLocation, error) {
-	var results []domain.DriverLocation
+func (mr *mongoRepository) Drivers() (domain.DriverLocations, error) {
+	var results domain.DriverLocations
 
 	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
 	defer cancel()
@@ -211,9 +185,9 @@ func (mr *mongoRepository) Drivers() ([]domain.DriverLocation, error) {
 		return nil, err
 	}
 	for cursor.Next(ctx) {
-		var result domain.DriverLocation
+		result := new(domain.DriverLocation)
 
-		err := cursor.Decode(&result)
+		err := cursor.Decode(result)
 		if err != nil {
 			return nil, err
 		}
@@ -221,3 +195,5 @@ func (mr *mongoRepository) Drivers() ([]domain.DriverLocation, error) {
 	}
 	return results, nil
 }
+
+

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/alicevvikk/bitaksi/matching-service/handlers"
+	h"github.com/alicevvikk/bitaksi/matching-service/handlers"
 	"github.com/alicevvikk/bitaksi/matching-service/logger"
 	"net/http"
 	"time"
@@ -15,7 +15,7 @@ func main() {
 	loadConfig()
 	
 	mux := http.NewServeMux()
-	mux.HandleFunc("/match/", handlers.MatchingHandler)
+	mux.HandleFunc("/match/", h.MustAuth(h.MatchingHandler))
 
 	server := &http.Server{
 		Addr:         config.Address,

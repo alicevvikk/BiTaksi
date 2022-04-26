@@ -8,12 +8,23 @@ import (
 	"bytes"
 
 	"github.com/alicevvikk/bitaksi/driver-location-service/domain"
+	"github.com/alicevvikk/bitaksi/driver-location-service/utils"
 
+	prim"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var client *http.Client
 
 var tokenString = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRoZW50aWNhdGVkIjp0cnVlfQ.CK7jhYYJ_ULnaO4s_vjy15_6pfFzwI5ns-s4XPvGYyo"
+
+
+type CreateResponse struct {
+	TotalReceived	int
+	Inserted	int
+	Updated		int
+
+}
+
 
 func TestMain(m *testing.M) {
 	setUp()
@@ -26,18 +37,243 @@ func setUp() {
 	//TODO 
 }
 
+//Creates one
+func TestCreateDriver_201(t * testing.T) {
+	expectedStatusCode := http.StatusCreated
+	method := "POST"
+	URL := "http://localhost:8081/driver"
+	expectedInsert := 1 
+
+
+	models := domain.DriverLocations {
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.345678, 25.345678},
+		},
+		},
+	}
+
+	buf := new(bytes.Buffer)
+	utils.ToJSON(buf, models)
+
+	req, err := http.NewRequest(method, URL, buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if resp.StatusCode != expectedStatusCode {
+		t.Errorf("GOT --> %v EXPECTED --> %v", resp.StatusCode, expectedStatusCode)
+	}
+	response := new(CreateResponse) 
+	err = utils.FromJSON(resp.Body, response)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if response.Inserted != expectedInsert {
+		t.Errorf("EXPECTED INSERT --> %v GOT --> %v", expectedInsert, response.Inserted)
+	}
+
+}
+
+
+//Creates two 
+func TestCreateDriver_201_2(t * testing.T) {
+	expectedStatusCode := http.StatusCreated
+	method := "POST"
+	URL := "http://localhost:8081/driver"
+	expectedInsert := 2
+
+
+	models := domain.DriverLocations {
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.345678, 25.345678},
+		},
+		},
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.34567, 25.345678},
+		},
+		},
+}
+
+	buf := new(bytes.Buffer)
+	utils.ToJSON(buf, models)
+
+	req, err := http.NewRequest(method, URL, buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if resp.StatusCode != expectedStatusCode {
+		t.Errorf("GOT --> %v EXPECTED --> %v", resp.StatusCode, expectedStatusCode)
+	}
+	response := new(CreateResponse) 
+	err = utils.FromJSON(resp.Body, response)
+	
+	if err != nil {
+		t.Error(err)
+	}
+
+	if response.Inserted != expectedInsert {
+		t.Errorf("EXPECTED INSERT --> %v GOT --> %v", expectedInsert, response.Inserted)
+	}
+
+}
+
+
+//Creates two, updates one 
+func TestCreateDriver_201_3(t * testing.T) {
+	expectedStatusCode := http.StatusCreated
+	method := "POST"
+	URL := "http://localhost:8081/driver"
+	expectedInsert := 2
+	expectedUpdate := 1
+
+	id, _:= prim.ObjectIDFromHex("62645f75cd9c930bae0d1c5c")
+	models := domain.DriverLocations {
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.345678, 25.345678},
+			},
+		},
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.34567, 25.345678},
+			},
+		},
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.34567, 22.345678},
+			},
+			Id:	id,
+		},
+}
+
+	buf := new(bytes.Buffer)
+	utils.ToJSON(buf, models)
+
+	req, err := http.NewRequest(method, URL, buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if resp.StatusCode != expectedStatusCode {
+		t.Errorf("GOT --> %v EXPECTED --> %v", resp.StatusCode, expectedStatusCode)
+	}
+
+	response := new(CreateResponse)
+	err = utils.FromJSON(resp.Body, response)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if response.Inserted != expectedInsert || response.Updated != expectedUpdate {
+		t.Errorf("GOT --> (%v, %v) EXPECTED --> (%v, %v)",
+			response.Inserted, response.Updated, expectedInsert, expectedUpdate)
+	}
+}
+
+// If invalid ID, create new
+// 
+func TestCreateDriver_201_4(t * testing.T) {
+	expectedStatusCode := http.StatusCreated
+	method := "POST"
+	URL := "http://localhost:8081/driver"
+	expectedInsert := 3
+	expectedUpdate := 0
+
+	// invalid id, so id gets zero value
+	id, _:= prim.ObjectIDFromHex("123456")
+	models := domain.DriverLocations {
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.345678, 25.345678},
+			},
+		},
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.34567, 25.345678},
+			},
+		},
+		{
+			Location: domain.Location {
+				Type:		"Point",
+				Coordinates:	[]float64{12.34567, 25.345678},
+			},
+			Id:	id,
+		},
+}
+
+	buf := new(bytes.Buffer)
+	utils.ToJSON(buf, models)
+
+	req, err := http.NewRequest(method, URL, buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if resp.StatusCode != expectedStatusCode {
+		t.Errorf("GOT --> %v EXPECTED --> %v", resp.StatusCode, expectedStatusCode)
+	}
+
+	response := new(CreateResponse)
+	err = utils.FromJSON(resp.Body, response)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if response.Inserted != expectedInsert || response.Updated != expectedUpdate {
+		t.Errorf("GOT --> (%v, %v) EXPECTED --> (%v, %v)",
+			response.Inserted, response.Updated, expectedInsert, expectedUpdate)
+	}
+}
 
 func TestDriverByLocation_200(t *testing.T) {
 	expectedStatusCode := http.StatusOK
+	method := "POST"
+	url := "http://localhost:8081/match"
 
 	model := domain.Location{
 		Type:		"Point",
 		Coordinates:	[]float64{29.0390200, 42.0000001},
 	}
 	buf := &bytes.Buffer{}
-	domain.ToJSON(buf, model)
+	utils.ToJSON(buf, model)
 
-	req, err := http.NewRequest("POST", "http://localhost:8081/match", buf)
+	req, err := http.NewRequest(method, url, buf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -64,7 +300,7 @@ func TestDriverByLocation_404(t *testing.T) {
 		Coordinates:	[]float64{42.0000001},
 	}
 	buf := &bytes.Buffer{}
-	domain.ToJSON(buf, model)
+	utils.ToJSON(buf, model)
 
 	req, err := http.NewRequest(method, URL, buf)
 	if err != nil {
@@ -95,7 +331,7 @@ func TestDriverByLocation_404_2(t *testing.T) {
 	}
 
 	buf := &bytes.Buffer{}
-	domain.ToJSON(buf, model)
+	utils.ToJSON(buf, model)
 
 	req, err := http.NewRequest(method, URL, buf)
 	if err != nil {
@@ -116,7 +352,7 @@ func TestDriverByLocation_404_2(t *testing.T) {
 
 }
 
-//correct coordinates, but not matched with a driver.
+//valid coordinates, but not matched with a driver.
 func TestDriverByLocation_404_3(t *testing.T) {
 	expectedStatusCode := http.StatusNotFound
 	method := "POST"
@@ -128,7 +364,7 @@ func TestDriverByLocation_404_3(t *testing.T) {
 	}
 
 	buf := &bytes.Buffer{}
-	domain.ToJSON(buf, model)
+	utils.ToJSON(buf, model)
 
 	req, err := http.NewRequest(method, URL, buf)
 	if err != nil {
@@ -158,7 +394,7 @@ func TestDriverByLocation_401(t *testing.T) {
 		Coordinates:	[]float64{29.0390200, 42.0000001},
 	}
 	buf := &bytes.Buffer{}
-	domain.ToJSON(buf, model)
+	utils.ToJSON(buf, model)
 
 	req, err := http.NewRequest("POST", "http://localhost:8081/match", buf)
 	if err != nil {
@@ -188,7 +424,7 @@ func TestDriverByLocation_401_2(t *testing.T) {
         }
 
         buf := &bytes.Buffer{}
-        domain.ToJSON(buf, model)
+        utils.ToJSON(buf, model)
         req, err := http.NewRequest(method, URL, buf)
         if err != nil {
                 t.Error(err)
@@ -207,8 +443,6 @@ func TestDriverByLocation_401_2(t *testing.T) {
         }
 
 }
-
-
 
 //fasfasfasfasfas
 func TestDriverByLocation_405(t *testing.T) {

@@ -1,10 +1,14 @@
 package domain
 
+import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type DriverLocationRepository interface {
-	CreateDriver(locations Locations) int
-	DeleteDriverById(id string) (int64, error)
-        DriverById(id string) (DriverLocation, error)
-        DriverByLocation(location *Location) (*ResponseLocation, error)
-	Drivers() ([]DriverLocation, error)
+	CreateDriver(location *DriverLocation) (int64, error)
+	UpdateDriver(location *DriverLocation) (int64, error)
+	DeleteDriverById(id primitive.ObjectID) (int64, error)
+        DriverById(id primitive.ObjectID) (*DriverLocation, error)
+        DriverByLocation(location *Location, r float64) (*DriverLocation, error)
+	Drivers() (DriverLocations, error)
 }
