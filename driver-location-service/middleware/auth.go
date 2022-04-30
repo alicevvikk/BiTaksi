@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"net/http"
-	
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/alicevvikk/bitaksi/driver-location-service/logger"
 )
@@ -10,7 +10,7 @@ import (
 var tokenKey = []byte("my_secret_key")
 
 //#Description: Takes a 'http.HandlerFunc' endpoint as parameter and acts as a middleware.
-func MustAuth(fn func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+func MustAuth(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r*http.Request) {
 		token := r.Header.Get("Authorization")
 		if token == "" {

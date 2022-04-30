@@ -20,11 +20,11 @@ func main() {
 	mongoRepository, err := mr.NewMongoRepository("bitaksi-db", 50)
 
 	if err != nil {
-		logger.Fatal("Error creating repository")
+		logger.Fatal(err.Error())
 	}
-	//mr.ImportInitialData(mongoRepository)
 
 	service := domain.NewDriverLocationService(mongoRepository)
+	service.ImportInitialData()
 	handler := api.NewHandler(service)
 
 	r := chi.NewRouter()

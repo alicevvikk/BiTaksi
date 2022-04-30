@@ -5,9 +5,10 @@ import (
 	"context"
 	"os"
 	"errors"
-	"log"
+	"fmt"
 
 	"github.com/alicevvikk/bitaksi/driver-location-service/domain"
+	"github.com/alicevvikk/bitaksi/driver-location-service/logger"
 
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -52,15 +53,57 @@ func newMongoClient() (*mongo.Client, error) {
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("mongo.newMongoClient %w", err)
 	}
 
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("mongo.newMongoClient %w", err)
 	}
 	return client, nil
 
+}
+func (mr *mongoRepository)createLocationIndex() {
+	logger.Info("Starting to create location index. from: repo.mongo.createLocationIndex")
+	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
+	defer cancel()
+
+	model := mongo.IndexModel{
+		Keys: bson.D{
+			{"location", "2dsphere"},
+		},
+	}
+
+	coll := mr.client.Database(mr.db).Collection("driver-locations")
+
+	var indexView mongo.IndexView
+	indexView = coll.Indexes()
+	_, err := indexView.CreateOne(
+		ctx,
+		model,
+		nil,
+	)
+
+	if err != nil {
+		logger.Fatal("Can't create the index. from: repo.mongo.createLocationIndex")
+	}
+	logger.Info("Index created successfully from: repo.mongo.createLocationInex")
+}
+func (mr *mongoRepository) ImportInitialData() {
+	logger.Info("Starting to import initial data.. from: repo.mongo.ImportInitialData")
+	loadCoordinates()
+	mr.createLocationIndex()
+
+	coll := mr.client.Database(mr.db).Collection("driver-locations")
+
+	ctx, cancel := context.WithTimeout(context.Background(), mr.timeout)
+	defer cancel()
+
+	_, err := coll.InsertMany(ctx, locations)
+	if err != nil {
+		logger.Fatal("error. from repo.mongo.ImportInitialData")
+	}
+	logger.Info("Initial data imporeted successfully.. from: repo.mongo.ImportInitialData")
 }
 
 func (mr *mongoRepository) DeleteDriverById(id primitive.ObjectID) (int64, error) {
@@ -106,7 +149,6 @@ func (mr *mongoRepository) UpdateDriver(location *domain.DriverLocation) (int64,
 	filter := bson.D{{"_id", location.Id}}
 	update := bson.D{{"$set", bson.D{{"location", location.Location}}}}
 	res, err := coll.UpdateOne(ctx, filter, update, nil)
-	log.Println("HERE BUDDYY", res.ModifiedCount, res.MatchedCount)
 
 	if err != nil {
 		return 0, err

@@ -1,9 +1,13 @@
 package domain
 
 import (
+	"fmt"
+
 	"github.com/alicevvikk/bitaksi/driver-location-service/utils"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+
 )
 
 // Radius value for specifying the maximum distance
@@ -14,7 +18,7 @@ const (
 
 // Group of methods to serve the business logic.
 type DriverLocationService interface {
-
+	ImportInitialData()
 	CreateDriver(locations DriverLocations) (int64, int64)
 	DeleteDriverById(id string) (int64, error)
 	DriverById(id string) (*DriverLocation, error)
@@ -33,13 +37,20 @@ func NewDriverLocationService(r DriverLocationRepository) DriverLocationService 
 		repo:	r,
 	}
 }
+// Calls the implementation of importing initial data from 
+// determined repository at runtime.
+func (dls *driverLocationService) ImportInitialData() {
+	dls.repo.ImportInitialData()
+}
+
+
 // Takes an id and converts it to 'ObjectID' type.
 // If given id is not convertable to ObjectID then returns
 // 0 as delete count. 
 func (dls *driverLocationService) DeleteDriverById(id string) (int64, error) {
 	objId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("service.DeleteDriverById %w", err)
 	}
 
 	return dls.repo.DeleteDriverById(objId)
@@ -77,7 +88,7 @@ func (dls *driverLocationService) CreateDriver(locations DriverLocations) (int64
 func (dls *driverLocationService) DriverById(id string) (*DriverLocation, error) {
 	objId, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("service.DriverById %w", err)
 	}
 
 	return dls.repo.DriverById(objId)
@@ -89,7 +100,7 @@ func (dls *driverLocationService) DriverById(id string) (*DriverLocation, error)
 func (dls *driverLocationService) DriverByLocation(location *Location) (*ResponseLocation, error) {
 	driverLocation, err := dls.repo.DriverByLocation(location, radius)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("service.DriverByLocation %w", err)
 	}
 	distance := utils.CalculateDistance(
 		location.Coordinates,
